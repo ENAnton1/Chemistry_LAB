@@ -60,4 +60,4 @@ cur.execute("""
 connection.commit()
 connection.close()
 
-print("✅ جميع الجداول تم إنشاؤها بنجاح!")
+print("Table created")

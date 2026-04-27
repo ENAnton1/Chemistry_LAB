@@ -2,585 +2,420 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import sqlite3
 from tkinter import Canvas
+from datetime import datetime
+from collections import Counter
+import re
 
 class ChemistrySimulator:
     def __init__(self, root):
         self.root = root
         self.root.title("⚗️ Chemistry Experiment Simulator")
-        self.root.geometry("1100x800")
+        self.root.geometry("1150x850")
         self.root.configure(bg='#f8f9fa')
+        self.is_dark = False
         
         # Database connection
-        self.conn = sqlite3.connect('chemistry.db')
-        self.cursor = self.conn.cursor()
+        try:
+            self.conn = sqlite3.connect('chemistry.db')
+            self.cursor = self.conn.cursor()
+        except Exception as e:
+            messagebox.showerror("Database Error", f"Could not connect to database: {e}")
+            
+        self.score = 0
+        self.total_attempts = 0
         
-        # Create main UI
         self.create_ui()
-        
+
     def create_ui(self):
-        """Create the main UI with tabs"""
-        
         # Header
-        header_frame = tk.Frame(self.root, bg='#2563eb', height=100)
+        header_frame = tk.Frame(self.root, bg='#2563eb', height=110)
         header_frame.pack(fill=tk.X, padx=0, pady=0)
         header_frame.pack_propagate(False)
         
-        title = tk.Label(
-            header_frame,
-            text="⚗️ Chemistry Experiment Simulator",
-            font=("Segoe UI", 28, "bold"),
-            bg='#2563eb',
-            fg='#ffffff'
-        )
-        title.pack(pady=15)
+        title = tk.Label(header_frame, text="⚗️ Chemistry Experiment Simulator",
+                        font=("Segoe UI", 28, "bold"), bg='#2563eb', fg='#ffffff')
+        title.pack(pady=18)
         
-        subtitle = tk.Label(
-            header_frame,
-            text="Balance Chemical Equations & Explore Reactions",
-            font=("Segoe UI", 12),
-            bg='#2563eb',
-            fg='#dbeafe'
-        )
+        subtitle = tk.Label(header_frame, text="Balance Chemical Equations & Explore Reactions",
+                            font=("Segoe UI", 12), bg='#2563eb', fg='#dbeafe')
         subtitle.pack()
+
+        # Score Bar
+        score_bar = tk.Frame(self.root, bg='#f1f5f9', height=40)
+        score_bar.pack(fill=tk.X, padx=30, pady=(0, 5))
+        score_bar.pack_propagate(False)
         
-        # Main content frame
+        self.score_label = tk.Label(score_bar, text="Score: 0 | Accuracy: 0%", 
+                                   font=("Segoe UI", 12, "bold"), bg='#f1f5f9', fg='#1e40af')
+        self.score_label.pack(side=tk.LEFT, padx=15)
+
+        # Theme Button Bar
+        top_bar = tk.Frame(self.root, bg='#f1f5f9')
+        top_bar.pack(fill=tk.X, padx=30, pady=(0, 8))
+
+        self.theme_btn = tk.Button(top_bar, text="🌙 Dark Mode", font=("Segoe UI", 10),
+                                  bg="#334155", fg="white", command=self.toggle_theme)
+        self.theme_btn.pack(side=tk.RIGHT, padx=10)
+
+        # Main content
         content_frame = tk.Frame(self.root, bg='#f8f9fa')
-        content_frame.pack(fill=tk.BOTH, expand=True, padx=30, pady=30)
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=30, pady=10)
         
-        # Notebook for tabs
         self.notebook = ttk.Notebook(content_frame)
         self.notebook.pack(fill=tk.BOTH, expand=True)
-        
-        # Style for notebook
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure('TNotebook', background='#f8f9fa', borderwidth=0)
-        style.configure('TNotebook.Tab', padding=[20, 10], font=("Segoe UI", 11))
-        style.map('TNotebook.Tab',
-                  background=[("selected", '#ffffff'), ("", '#e5e7eb')],
-                  foreground=[("selected", '#1e40af'), ("", '#475569')])
-        
+
         # Create tabs
         self.create_combination_tab()
         self.create_double_displacement_tab()
-        
+
     def create_combination_tab(self):
-        """Create Combination Reaction tab"""
-        
         tab = tk.Frame(self.notebook, bg='#f8f9fa')
         self.notebook.add(tab, text="🔬 Combination Reactions")
         
-        # Main container with two panels
         main_container = tk.Frame(tab, bg='#f8f9fa')
         main_container.pack(fill=tk.BOTH, expand=True)
         
-        # ===== LEFT PANEL - INPUT =====
+        # Left Panel - Input
         left_panel = tk.Frame(main_container, bg='#ffffff', relief=tk.RAISED, bd=1)
         left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 15))
         
-        # Title
-        input_title = tk.Label(
-            left_panel,
-            text="🔬 Enter Reactants",
-            font=("Segoe UI", 18, "bold"),
-            bg='#ffffff',
-            fg='#1e40af'
-        )
-        input_title.pack(anchor=tk.W, padx=20, pady=(20, 10))
+        tk.Label(left_panel, text="🔬 Enter Reactants", font=("Segoe UI", 18, "bold"), 
+                bg='#ffffff', fg='#1e40af').pack(anchor=tk.W, padx=20, pady=(20, 10))
         
-        # Separator
-        separator1 = tk.Frame(left_panel, bg='#e0e7ff', height=2)
-        separator1.pack(fill=tk.X, padx=20, pady=(0, 20))
+        tk.Frame(left_panel, bg='#e0e7ff', height=2).pack(fill=tk.X, padx=20, pady=(0, 20))
         
-        # Input fields container - HORIZONTAL LAYOUT
         input_container = tk.Frame(left_panel, bg='#ffffff')
         input_container.pack(fill=tk.X, padx=20, pady=10)
         
-        # Left input group
-        left_input_group = tk.Frame(input_container, bg='#ffffff')
-        left_input_group.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        
-        tk.Label(left_input_group, text="Reactant 1", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b').pack(anchor=tk.W, pady=(0, 5))
-        tk.Label(left_input_group, text="Symbol:", font=("Segoe UI", 10), bg='#ffffff', fg='#475569').pack(anchor=tk.W)
-        self.comb_reactant1_symbol = tk.Entry(left_input_group, font=("Segoe UI", 12), bg='#f1f5f9', fg='#1e293b', relief=tk.FLAT, width=10)
-        self.comb_reactant1_symbol.pack(fill=tk.X, pady=(0, 10))
-        
-        tk.Label(left_input_group, text="Coefficient:", font=("Segoe UI", 10), bg='#ffffff', fg='#475569').pack(anchor=tk.W)
-        self.comb_reactant1_coeff = tk.Entry(left_input_group, font=("Segoe UI", 12), bg='#f1f5f9', fg='#1e293b', relief=tk.FLAT, width=10)
+        # Reactant 1
+        left_group = tk.Frame(input_container, bg='#ffffff')
+        left_group.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        tk.Label(left_group, text="Reactant 1", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b').pack(anchor=tk.W, pady=(0,5))
+        tk.Label(left_group, text="Symbol:", bg='#ffffff', fg='#475569').pack(anchor=tk.W)
+        self.comb_reactant1_symbol = tk.Entry(left_group, font=("Segoe UI", 12), bg='#f1f5f9', relief=tk.FLAT)
+        self.comb_reactant1_symbol.pack(fill=tk.X, pady=(0,10))
+        tk.Label(left_group, text="Coefficient:", bg='#ffffff', fg='#475569').pack(anchor=tk.W)
+        self.comb_reactant1_coeff = tk.Entry(left_group, font=("Segoe UI", 12), bg='#f1f5f9', relief=tk.FLAT)
         self.comb_reactant1_coeff.pack(fill=tk.X)
         
-        # Plus sign in middle
-        plus_frame = tk.Frame(input_container, bg='#ffffff')
-        plus_frame.pack(side=tk.LEFT, fill=tk.Y, padx=20)
-        tk.Label(plus_frame, text="➕", font=("Segoe UI", 24), bg='#ffffff', fg='#2563eb').pack(pady=20)
+        # Plus
+        tk.Label(input_container, text="➕", font=("Segoe UI", 26), bg='#ffffff', fg='#2563eb').pack(side=tk.LEFT, padx=25, pady=30)
         
-        # Right input group
-        right_input_group = tk.Frame(input_container, bg='#ffffff')
-        right_input_group.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        
-        tk.Label(right_input_group, text="Reactant 2", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b').pack(anchor=tk.W, pady=(0, 5))
-        tk.Label(right_input_group, text="Symbol:", font=("Segoe UI", 10), bg='#ffffff', fg='#475569').pack(anchor=tk.W)
-        self.comb_reactant2_symbol = tk.Entry(right_input_group, font=("Segoe UI", 12), bg='#f1f5f9', fg='#1e293b', relief=tk.FLAT, width=10)
-        self.comb_reactant2_symbol.pack(fill=tk.X, pady=(0, 10))
-        
-        tk.Label(right_input_group, text="Coefficient:", font=("Segoe UI", 10), bg='#ffffff', fg='#475569').pack(anchor=tk.W)
-        self.comb_reactant2_coeff = tk.Entry(right_input_group, font=("Segoe UI", 12), bg='#f1f5f9', fg='#1e293b', relief=tk.FLAT, width=10)
+        # Reactant 2
+        right_group = tk.Frame(input_container, bg='#ffffff')
+        right_group.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        tk.Label(right_group, text="Reactant 2", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b').pack(anchor=tk.W, pady=(0,5))
+        tk.Label(right_group, text="Symbol:", bg='#ffffff', fg='#475569').pack(anchor=tk.W)
+        self.comb_reactant2_symbol = tk.Entry(right_group, font=("Segoe UI", 12), bg='#f1f5f9', relief=tk.FLAT)
+        self.comb_reactant2_symbol.pack(fill=tk.X, pady=(0,10))
+        tk.Label(right_group, text="Coefficient:", bg='#ffffff', fg='#475569').pack(anchor=tk.W)
+        self.comb_reactant2_coeff = tk.Entry(right_group, font=("Segoe UI", 12), bg='#f1f5f9', relief=tk.FLAT)
         self.comb_reactant2_coeff.pack(fill=tk.X)
         
-        # React Button
+        # Buttons
         button_frame = tk.Frame(left_panel, bg='#ffffff')
-        button_frame.pack(fill=tk.X, padx=20, pady=20)
+        button_frame.pack(fill=tk.X, padx=20, pady=25)
         
-        self.comb_react_button = tk.Button(
-            button_frame,
-            text="⚡ React",
-            font=("Segoe UI", 14, "bold"),
-            bg='#2563eb',
-            fg='#ffffff',
-            padx=40,
-            pady=12,
-            border=0,
-            cursor="hand2",
-            relief=tk.FLAT,
-            command=self.perform_combination_reaction,
-            activebackground='#1d4ed8',
-            activeforeground='#ffffff'
-        )
-        self.comb_react_button.pack(fill=tk.X)
+        tk.Button(button_frame, text="⚡ React", font=("Segoe UI", 14, "bold"), 
+                bg='#2563eb', fg='white', pady=12, relief=tk.FLAT,
+                command=self.perform_combination_reaction).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0,8))
         
-        # ===== RIGHT PANEL - RESULTS =====
+        tk.Button(button_frame, text="🗑️ Clear", font=("Segoe UI", 12), 
+                bg='#64748b', fg='white', pady=12, relief=tk.FLAT,
+                command=self.clear_combination).pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        # Right Panel
         right_panel = tk.Frame(main_container, bg='#ffffff', relief=tk.RAISED, bd=1)
         right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(15, 0))
         
-        # Title
-        result_title = tk.Label(
-            right_panel,
-            text="📊 Reaction Result",
-            font=("Segoe UI", 18, "bold"),
-            bg='#ffffff',
-            fg='#1e40af'
-        )
-        result_title.pack(anchor=tk.W, padx=20, pady=(20, 10))
+        tk.Label(right_panel, text="📊 Reaction Result", font=("Segoe UI", 18, "bold"), 
+                bg='#ffffff', fg='#1e40af').pack(anchor=tk.W, padx=20, pady=(20, 10))
+        tk.Frame(right_panel, bg='#e0e7ff', height=2).pack(fill=tk.X, padx=20, pady=(0, 20))
         
-        # Separator
-        separator2 = tk.Frame(right_panel, bg='#e0e7ff', height=2)
-        separator2.pack(fill=tk.X, padx=20, pady=(0, 20))
+        tk.Label(right_panel, text="Balanced Equation:", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b')\
+            .pack(anchor=tk.W, padx=20, pady=(0,5))
         
-        # Equation display
-        tk.Label(right_panel, text="Balanced Equation:", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b').pack(anchor=tk.W, padx=20, pady=(0, 5))
-        equation_frame = tk.Frame(right_panel, bg='#dbeafe', relief=tk.FLAT, bd=0)
-        equation_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
+        self.comb_equation_label = tk.Label(right_panel, text="(Enter reactants and press React)", 
+                                        font=("Courier New", 13, "bold"), bg='#dbeafe', fg='#0c4a6e',
+                                        wraplength=380, pady=12, padx=10)
+        self.comb_equation_label.pack(fill=tk.X, padx=20, pady=(0,15))
         
-        self.comb_equation_label = tk.Label(
-            equation_frame,
-            text="(Enter reactants and press React)",
-            font=("Courier New", 13, "bold"),
-            bg='#dbeafe',
-            fg='#0c4a6e',
-            wraplength=350,
-            pady=10,
-            padx=10
-        )
-        self.comb_equation_label.pack(fill=tk.BOTH)
+        tk.Label(right_panel, text="Correction:", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b')\
+            .pack(anchor=tk.W, padx=20, pady=(10,5))
+        self.comb_correction_label = tk.Label(right_panel, text="", font=("Segoe UI", 10), 
+                                            bg='#ffffff', fg='#059669', wraplength=380, justify=tk.LEFT)
+        self.comb_correction_label.pack(anchor=tk.W, padx=20, pady=(0,15))
         
-        # Correction message
-        tk.Label(right_panel, text="Correction:", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b').pack(anchor=tk.W, padx=20, pady=(15, 5))
-        self.comb_correction_label = tk.Label(
-            right_panel,
-            text="",
-            font=("Segoe UI", 10),
-            bg='#ffffff',
-            fg='#059669',
-            wraplength=350,
-            justify=tk.LEFT
-        )
-        self.comb_correction_label.pack(anchor=tk.W, padx=20, pady=(0, 15))
+        tk.Label(right_panel, text="Product Color:", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b')\
+            .pack(anchor=tk.W, padx=20, pady=(0,5))
         
-        # Product color display
-        tk.Label(right_panel, text="Product Color:", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b').pack(anchor=tk.W, padx=20, pady=(0, 5))
+        color_frame = tk.Frame(right_panel, bg='#ffffff')
+        color_frame.pack(anchor=tk.W, padx=20, pady=5)
+        self.comb_color_canvas = Canvas(color_frame, width=110, height=65, bg='#ffffff', highlightthickness=1, highlightbackground='#cbd5e1')
+        self.comb_color_canvas.pack(side=tk.LEFT, padx=(0,12))
+        self.comb_product_label = tk.Label(color_frame, text="", font=("Segoe UI", 12, "bold"), bg='#ffffff')
+        self.comb_product_label.pack(side=tk.LEFT)
         
-        color_display_frame = tk.Frame(right_panel, bg='#ffffff')
-        color_display_frame.pack(anchor=tk.W, padx=20, pady=(0, 15))
-        
-        self.comb_color_canvas = Canvas(color_display_frame, width=100, height=60, bg='#ffffff', highlightthickness=1, highlightbackground='#cbd5e1')
-        self.comb_color_canvas.pack(side=tk.LEFT, padx=(0, 10))
-        
-        self.comb_product_label = tk.Label(
-            color_display_frame,
-            text="",
-            font=("Segoe UI", 12, "bold"),
-            bg='#ffffff',
-            fg='#1e293b'
-        )
-        self.comb_product_label.pack(side=tk.LEFT, anchor=tk.W)
-        
-        # Status message
-        self.comb_status_label = tk.Label(
-            right_panel,
-            text="",
-            font=("Segoe UI", 10),
-            bg='#ffffff',
-            fg='#059669',
-            wraplength=350,
-            justify=tk.LEFT
-        )
-        self.comb_status_label.pack(anchor=tk.W, padx=20, pady=20, fill=tk.BOTH, expand=True)
-    
+        self.comb_status_label = tk.Label(right_panel, text="", font=("Segoe UI", 10), bg='#ffffff', 
+                                        fg='#059669', wraplength=380, justify=tk.LEFT)
+        self.comb_status_label.pack(anchor=tk.W, padx=20, pady=25, fill=tk.BOTH, expand=True)
+
     def create_double_displacement_tab(self):
-        """Create Double Displacement Reaction tab"""
-        
         tab = tk.Frame(self.notebook, bg='#f8f9fa')
-        self.notebook.add(tab, text="💥 Double Displacement (Precipitation)")
+        self.notebook.add(tab, text="💥 Double Displacement")
         
-        # Main container with two panels
         main_container = tk.Frame(tab, bg='#f8f9fa')
         main_container.pack(fill=tk.BOTH, expand=True)
         
-        # ===== LEFT PANEL - INPUT =====
+        # Left Panel
         left_panel = tk.Frame(main_container, bg='#ffffff', relief=tk.RAISED, bd=1)
         left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 15))
         
-        # Title
-        input_title = tk.Label(
-            left_panel,
-            text="💥 Enter Compounds",
-            font=("Segoe UI", 18, "bold"),
-            bg='#ffffff',
-            fg='#1e40af'
-        )
-        input_title.pack(anchor=tk.W, padx=20, pady=(20, 10))
+        tk.Label(left_panel, text="💥 Enter Compounds", font=("Segoe UI", 18, "bold"), 
+                bg='#ffffff', fg='#1e40af').pack(anchor=tk.W, padx=20, pady=(20, 10))
+        tk.Frame(left_panel, bg='#e0e7ff', height=2).pack(fill=tk.X, padx=20, pady=(0, 20))
         
-        # Separator
-        separator1 = tk.Frame(left_panel, bg='#e0e7ff', height=2)
-        separator1.pack(fill=tk.X, padx=20, pady=(0, 20))
-        
-        # Input fields container - HORIZONTAL LAYOUT
         input_container = tk.Frame(left_panel, bg='#ffffff')
         input_container.pack(fill=tk.X, padx=20, pady=10)
         
-        # Left input group
-        left_input_group = tk.Frame(input_container, bg='#ffffff')
-        left_input_group.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        
-        tk.Label(left_input_group, text="Compound 1", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b').pack(anchor=tk.W, pady=(0, 5))
-        tk.Label(left_input_group, text="Name:", font=("Segoe UI", 10), bg='#ffffff', fg='#475569').pack(anchor=tk.W)
-        self.dd_reactant1_symbol = tk.Entry(left_input_group, font=("Segoe UI", 12), bg='#f1f5f9', fg='#1e293b', relief=tk.FLAT, width=12)
-        self.dd_reactant1_symbol.pack(fill=tk.X, pady=(0, 10))
-        
-        tk.Label(left_input_group, text="Coefficient:", font=("Segoe UI", 10), bg='#ffffff', fg='#475569').pack(anchor=tk.W)
-        self.dd_reactant1_coeff = tk.Entry(left_input_group, font=("Segoe UI", 12), bg='#f1f5f9', fg='#1e293b', relief=tk.FLAT, width=12)
+        # Compound 1
+        left_group = tk.Frame(input_container, bg='#ffffff')
+        left_group.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        tk.Label(left_group, text="Compound 1", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b').pack(anchor=tk.W, pady=(0,5))
+        tk.Label(left_group, text="Name:", bg='#ffffff', fg='#475569').pack(anchor=tk.W)
+        self.dd_reactant1_symbol = tk.Entry(left_group, font=("Segoe UI", 12), bg='#f1f5f9', relief=tk.FLAT)
+        self.dd_reactant1_symbol.pack(fill=tk.X, pady=(0,10))
+        tk.Label(left_group, text="Coefficient:", bg='#ffffff', fg='#475569').pack(anchor=tk.W)
+        self.dd_reactant1_coeff = tk.Entry(left_group, font=("Segoe UI", 12), bg='#f1f5f9', relief=tk.FLAT)
         self.dd_reactant1_coeff.pack(fill=tk.X)
         
-        # Plus sign in middle
-        plus_frame = tk.Frame(input_container, bg='#ffffff')
-        plus_frame.pack(side=tk.LEFT, fill=tk.Y, padx=20)
-        tk.Label(plus_frame, text="➕", font=("Segoe UI", 24), bg='#ffffff', fg='#2563eb').pack(pady=20)
+        tk.Label(input_container, text="➕", font=("Segoe UI", 26), bg='#ffffff', fg='#2563eb').pack(side=tk.LEFT, padx=25, pady=30)
         
-        # Right input group
-        right_input_group = tk.Frame(input_container, bg='#ffffff')
-        right_input_group.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        
-        tk.Label(right_input_group, text="Compound 2", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b').pack(anchor=tk.W, pady=(0, 5))
-        tk.Label(right_input_group, text="Name:", font=("Segoe UI", 10), bg='#ffffff', fg='#475569').pack(anchor=tk.W)
-        self.dd_reactant2_symbol = tk.Entry(right_input_group, font=("Segoe UI", 12), bg='#f1f5f9', fg='#1e293b', relief=tk.FLAT, width=12)
-        self.dd_reactant2_symbol.pack(fill=tk.X, pady=(0, 10))
-        
-        tk.Label(right_input_group, text="Coefficient:", font=("Segoe UI", 10), bg='#ffffff', fg='#475569').pack(anchor=tk.W)
-        self.dd_reactant2_coeff = tk.Entry(right_input_group, font=("Segoe UI", 12), bg='#f1f5f9', fg='#1e293b', relief=tk.FLAT, width=12)
+        # Compound 2
+        right_group = tk.Frame(input_container, bg='#ffffff')
+        right_group.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        tk.Label(right_group, text="Compound 2", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b').pack(anchor=tk.W, pady=(0,5))
+        tk.Label(right_group, text="Name:", bg='#ffffff', fg='#475569').pack(anchor=tk.W)
+        self.dd_reactant2_symbol = tk.Entry(right_group, font=("Segoe UI", 12), bg='#f1f5f9', relief=tk.FLAT)
+        self.dd_reactant2_symbol.pack(fill=tk.X, pady=(0,10))
+        tk.Label(right_group, text="Coefficient:", bg='#ffffff', fg='#475569').pack(anchor=tk.W)
+        self.dd_reactant2_coeff = tk.Entry(right_group, font=("Segoe UI", 12), bg='#f1f5f9', relief=tk.FLAT)
         self.dd_reactant2_coeff.pack(fill=tk.X)
         
-        # React Button
+        # Buttons
         button_frame = tk.Frame(left_panel, bg='#ffffff')
-        button_frame.pack(fill=tk.X, padx=20, pady=20)
+        button_frame.pack(fill=tk.X, padx=20, pady=25)
         
-        self.dd_react_button = tk.Button(
-            button_frame,
-            text="⚡ React",
-            font=("Segoe UI", 14, "bold"),
-            bg='#2563eb',
-            fg='#ffffff',
-            padx=40,
-            pady=12,
-            border=0,
-            cursor="hand2",
-            relief=tk.FLAT,
-            command=self.perform_double_displacement_reaction,
-            activebackground='#1d4ed8',
-            activeforeground='#ffffff'
-        )
-        self.dd_react_button.pack(fill=tk.X)
+        tk.Button(button_frame, text="⚡ React", font=("Segoe UI", 14, "bold"), 
+                bg='#2563eb', fg='white', pady=12, relief=tk.FLAT,
+                command=self.perform_double_displacement_reaction).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0,8))
         
-        # ===== RIGHT PANEL - RESULTS =====
+        tk.Button(button_frame, text="🗑️ Clear", font=("Segoe UI", 12), 
+                bg='#64748b', fg='white', pady=12, relief=tk.FLAT,
+                command=self.clear_double_displacement).pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        # Right Panel
         right_panel = tk.Frame(main_container, bg='#ffffff', relief=tk.RAISED, bd=1)
         right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(15, 0))
         
-        # Title
-        result_title = tk.Label(
-            right_panel,
-            text="📊 Reaction Result",
-            font=("Segoe UI", 18, "bold"),
-            bg='#ffffff',
-            fg='#1e40af'
-        )
-        result_title.pack(anchor=tk.W, padx=20, pady=(20, 10))
+        tk.Label(right_panel, text="📊 Reaction Result", font=("Segoe UI", 18, "bold"), 
+                bg='#ffffff', fg='#1e40af').pack(anchor=tk.W, padx=20, pady=(20, 10))
+        tk.Frame(right_panel, bg='#e0e7ff', height=2).pack(fill=tk.X, padx=20, pady=(0, 20))
         
-        # Separator
-        separator2 = tk.Frame(right_panel, bg='#e0e7ff', height=2)
-        separator2.pack(fill=tk.X, padx=20, pady=(0, 20))
+        tk.Label(right_panel, text="Balanced Equation:", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b')\
+            .pack(anchor=tk.W, padx=20, pady=(0,5))
         
-        # Equation display
-        tk.Label(right_panel, text="Balanced Equation:", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b').pack(anchor=tk.W, padx=20, pady=(0, 5))
-        equation_frame = tk.Frame(right_panel, bg='#dbeafe', relief=tk.FLAT, bd=0)
-        equation_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
+        self.dd_equation_label = tk.Label(right_panel, text="(Enter compounds and press React)", 
+                                        font=("Courier New", 13, "bold"), bg='#dbeafe', fg='#0c4a6e',
+                                        wraplength=380, pady=12, padx=10)
+        self.dd_equation_label.pack(fill=tk.X, padx=20, pady=(0,15))
         
-        self.dd_equation_label = tk.Label(
-            equation_frame,
-            text="(Enter compounds and press React)",
-            font=("Courier New", 13, "bold"),
-            bg='#dbeafe',
-            fg='#0c4a6e',
-            wraplength=350,
-            pady=10,
-            padx=10
-        )
-        self.dd_equation_label.pack(fill=tk.BOTH)
+        tk.Label(right_panel, text="Precipitate Formed:", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b')\
+            .pack(anchor=tk.W, padx=20, pady=(10,5))
+        self.dd_precipitate_label = tk.Label(right_panel, text="", font=("Segoe UI", 11), 
+                                            fg='#dc2626', bg='#ffffff', wraplength=380, justify=tk.LEFT)
+        self.dd_precipitate_label.pack(anchor=tk.W, padx=20, pady=(0,15))
         
-        # Precipitate info
-        tk.Label(right_panel, text="Precipitate Formed:", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b').pack(anchor=tk.W, padx=20, pady=(15, 5))
-        self.dd_precipitate_label = tk.Label(
-            right_panel,
-            text="",
-            font=("Segoe UI", 10),
-            bg='#ffffff',
-            fg='#dc2626',
-            wraplength=350,
-            justify=tk.LEFT
-        )
-        self.dd_precipitate_label.pack(anchor=tk.W, padx=20, pady=(0, 15))
+        tk.Label(right_panel, text="Precipitate Color:", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b')\
+            .pack(anchor=tk.W, padx=20, pady=(0,5))
         
-        # Precipitate color display
-        tk.Label(right_panel, text="Precipitate Color:", font=("Segoe UI", 11, "bold"), bg='#ffffff', fg='#1e293b').pack(anchor=tk.W, padx=20, pady=(0, 5))
+        color_frame = tk.Frame(right_panel, bg='#ffffff')
+        color_frame.pack(anchor=tk.W, padx=20, pady=5)
+        self.dd_color_canvas = Canvas(color_frame, width=110, height=65, bg='#ffffff', highlightthickness=1, highlightbackground='#cbd5e1')
+        self.dd_color_canvas.pack(side=tk.LEFT, padx=(0,12))
+        self.dd_color_label = tk.Label(color_frame, text="", font=("Segoe UI", 12, "bold"), bg='#ffffff')
+        self.dd_color_label.pack(side=tk.LEFT)
         
-        color_display_frame = tk.Frame(right_panel, bg='#ffffff')
-        color_display_frame.pack(anchor=tk.W, padx=20, pady=(0, 15))
-        
-        self.dd_color_canvas = Canvas(color_display_frame, width=100, height=60, bg='#ffffff', highlightthickness=1, highlightbackground='#cbd5e1')
-        self.dd_color_canvas.pack(side=tk.LEFT, padx=(0, 10))
-        
-        self.dd_color_label = tk.Label(
-            color_display_frame,
-            text="",
-            font=("Segoe UI", 12, "bold"),
-            bg='#ffffff',
-            fg='#1e293b'
-        )
-        self.dd_color_label.pack(side=tk.LEFT, anchor=tk.W)
-        
-        # Status message
-        self.dd_status_label = tk.Label(
-            right_panel,
-            text="",
-            font=("Segoe UI", 10),
-            bg='#ffffff',
-            fg='#059669',
-            wraplength=350,
-            justify=tk.LEFT
-        )
-        self.dd_status_label.pack(anchor=tk.W, padx=20, pady=20, fill=tk.BOTH, expand=True)
-    
+        self.dd_status_label = tk.Label(right_panel, text="", font=("Segoe UI", 10), bg='#ffffff', 
+                                    fg='#059669', wraplength=380, justify=tk.LEFT)
+        self.dd_status_label.pack(anchor=tk.W, padx=20, pady=25, fill=tk.BOTH, expand=True)
+
+    def clear_combination(self):
+        self.comb_reactant1_symbol.delete(0, tk.END)
+        self.comb_reactant2_symbol.delete(0, tk.END)
+        self.comb_reactant1_coeff.delete(0, tk.END)
+        self.comb_reactant2_coeff.delete(0, tk.END)
+        self.comb_equation_label.config(text="(Enter reactants and press React)")
+        self.comb_correction_label.config(text="")
+        self.comb_status_label.config(text="")
+        self.comb_product_label.config(text="")
+        self.comb_color_canvas.delete("all")
+
+    def clear_double_displacement(self):
+        self.dd_reactant1_symbol.delete(0, tk.END)
+        self.dd_reactant2_symbol.delete(0, tk.END)
+        self.dd_reactant1_coeff.delete(0, tk.END)
+        self.dd_reactant2_coeff.delete(0, tk.END)
+        self.dd_equation_label.config(text="(Enter compounds and press React)")
+        self.dd_precipitate_label.config(text="")
+        self.dd_status_label.config(text="")
+        self.dd_color_label.config(text="")
+        self.dd_color_canvas.delete("all")
+
+    def toggle_theme(self):
+        self.is_dark = not self.is_dark
+        if self.is_dark:
+            bg_color, fg_color, frame_bg, entry_bg = '#1f2937', '#e2e8f0', '#334155', '#475569'
+            self.theme_btn.config(text="☀️ Light Mode", bg="#64748b")
+        else:
+            bg_color, fg_color, frame_bg, entry_bg = '#f8f9fa', '#1e293b', '#ffffff', '#f1f5f9'
+            self.theme_btn.config(text="🌙 Dark Mode", bg="#334155")
+
+        self.root.configure(bg=bg_color)
+        for widget in self.root.winfo_children():
+            self.recursive_theme_change(widget, bg_color, fg_color, frame_bg, frame_bg, entry_bg)
+
+    def recursive_theme_change(self, widget, bg, fg, frame_bg, label_bg, entry_bg):
+        try:
+            widget_type = widget.winfo_class()
+            if widget_type in ('Frame', 'TFrame'):
+                widget.configure(bg=frame_bg)
+            elif widget_type in ('Label', 'TLabel'):
+                widget.configure(bg=label_bg, fg=fg)
+            elif widget_type in ('Entry', 'TEntry'):
+                widget.configure(bg=entry_bg, fg=fg)
+            elif widget_type == 'Canvas':
+                widget.configure(bg=frame_bg)
+            for child in widget.winfo_children():
+                self.recursive_theme_change(child, bg, fg, frame_bg, label_bg, entry_bg)
+        except: pass
+
+    def update_score(self):
+        accuracy = (self.score / self.total_attempts * 100) if self.total_attempts > 0 else 0
+        self.score_label.config(text=f"Score: {self.score} | Accuracy: {accuracy:.1f}%")
+
     def get_compound_composition(self, compound_name):
-        """Get the composition of a compound from database"""
-        self.cursor.execute("""
-            SELECT element_symbol, count FROM Compound_Composition
-            WHERE compound_name = ?
-        """, (compound_name,))
-        
+        self.cursor.execute("SELECT element_symbol, count FROM Compound_Composition WHERE compound_name = ?", (compound_name,))
         result = self.cursor.fetchall()
-        if result:
-            return {element: count for element, count in result}
+        return {elem: cnt for elem, cnt in result} if result else None
+
+    def balance_equation(self, r1, r2, prod):
+        r1_comp = self.get_compound_composition(r1) or {r1: 1}
+        r2_comp = self.get_compound_composition(r2) or {r2: 1}
+        prod_comp = self.get_compound_composition(prod) or {prod: 1}
+        for c1 in range(1, 11):
+            for c2 in range(1, 11):
+                for cp in range(1, 11):
+                    left = {}
+                    for e, c in r1_comp.items(): left[e] = left.get(e, 0) + c * c1
+                    for e, c in r2_comp.items(): left[e] = left.get(e, 0) + c * c2
+                    right = {e: c * cp for e, c in prod_comp.items()}
+                    if left == right: return c1, c2, cp
         return None
-    
-    def balance_equation(self, reactant1_symbol, reactant2_symbol, product_symbol):
-        """Try to balance the equation automatically"""
-        
-        # Get compositions
-        r1_comp = self.get_compound_composition(reactant1_symbol)
-        r2_comp = self.get_compound_composition(reactant2_symbol)
-        prod_comp = self.get_compound_composition(product_symbol)
-        
-        # If any is a simple element, treat as single element
-        if r1_comp is None:
-            r1_comp = {reactant1_symbol: 1}
-        if r2_comp is None:
-            r2_comp = {reactant2_symbol: 1}
-        if prod_comp is None:
-            prod_comp = {product_symbol: 1}
-        
-        # Try coefficients from 1 to 10
-        for coeff1 in range(1, 11):
-            for coeff2 in range(1, 11):
-                for coeff_prod in range(1, 11):
-                    # Count atoms on left side
-                    left_atoms = {}
-                    for elem, count in r1_comp.items():
-                        left_atoms[elem] = left_atoms.get(elem, 0) + count * coeff1
-                    for elem, count in r2_comp.items():
-                        left_atoms[elem] = left_atoms.get(elem, 0) + count * coeff2
-                    
-                    # Count atoms on right side
-                    right_atoms = {}
-                    for elem, count in prod_comp.items():
-                        right_atoms[elem] = right_atoms.get(elem, 0) + count * coeff_prod
-                    
-                    # Check if balanced
-                    if left_atoms == right_atoms:
-                        return coeff1, coeff2, coeff_prod
-        
-        return None
-    
-    def perform_combination_reaction(self):
-        """Perform combination reaction"""
-        
-        try:
-            reactant1_symbol = self.comb_reactant1_symbol.get().strip()
-            reactant2_symbol = self.comb_reactant2_symbol.get().strip()
-            user_coeff1 = self.comb_reactant1_coeff.get().strip()
-            user_coeff2 = self.comb_reactant2_coeff.get().strip()
-            
-            if not reactant1_symbol or not reactant2_symbol:
-                messagebox.showerror("Error", "Please enter both reactant symbols")
-                return
-            
-            user_coeff1 = int(user_coeff1) if user_coeff1 else 1
-            user_coeff2 = int(user_coeff2) if user_coeff2 else 1
-            
-            # Query database
-            self.cursor.execute("""
-                SELECT r.equation, p.name, p.color, r.reaction_type
-                FROM Reactions r
-                JOIN Products p ON r.product_id = p.id
-                JOIN Reaction_Reactants rr ON r.id = rr.reaction_id
-                JOIN Reactants reactants ON rr.reactant_id = reactants.id
-                WHERE reactants.name IN (?, ?)
-                AND r.reaction_type = 'Combination'
-                GROUP BY r.id
-                HAVING COUNT(DISTINCT reactants.id) = 2
-            """, (reactant1_symbol, reactant2_symbol))
-            
-            result = self.cursor.fetchone()
-            
-            if result:
-                equation, product_name, color, reaction_type = result
-                
-                balanced = self.balance_equation(reactant1_symbol, reactant2_symbol, product_name)
-                
-                if balanced:
-                    correct_coeff1, correct_coeff2, correct_prod = balanced
-                    balanced_equation = f"{correct_coeff1}{reactant1_symbol} + {correct_coeff2}{reactant2_symbol} → {correct_prod}{product_name}"
-                    
-                    self.comb_equation_label.config(text=balanced_equation, fg='#0c4a6e')
-                    self.comb_product_label.config(text=f"Product: {product_name}", fg='#1e293b')
-                    self.display_color(color, self.comb_color_canvas, self.comb_product_label)
-                    
-                    if user_coeff1 == correct_coeff1 and user_coeff2 == correct_coeff2:
-                        self.comb_correction_label.config(text="✓ Your coefficients are correct!", fg='#059669')
-                        self.comb_status_label.config(text="🎉 Perfect! The equation is balanced correctly!", fg='#059669')
-                    else:
-                        correction_text = f"⚠ Your coefficients: {user_coeff1}, {user_coeff2}\n✓ Correct: {correct_coeff1}, {correct_coeff2}"
-                        self.comb_correction_label.config(text=correction_text, fg='#d97706')
-                        self.comb_status_label.config(text="The equation has been auto-balanced.", fg='#d97706')
-                else:
-                    self.comb_equation_label.config(text="Could not balance", fg='#dc2626')
-                    self.comb_status_label.config(text="❌ Unable to balance", fg='#dc2626')
-            else:
-                self.comb_equation_label.config(text="No reaction occurs", fg='#dc2626')
-                self.comb_product_label.config(text="", fg='#1e293b')
-                self.comb_color_canvas.delete("all")
-                self.comb_status_label.config(text="❌ No matching reaction found", fg='#dc2626')
-                
-        except ValueError:
-            messagebox.showerror("Error", "Coefficients must be numbers")
-        except Exception as e:
-            messagebox.showerror("Error", f"Error: {str(e)}")
-    
-    def perform_double_displacement_reaction(self):
-        """Perform double displacement reaction"""
-        
-        try:
-            reactant1_name = self.dd_reactant1_symbol.get().strip()
-            reactant2_name = self.dd_reactant2_symbol.get().strip()
-            user_coeff1 = self.dd_reactant1_coeff.get().strip()
-            user_coeff2 = self.dd_reactant2_coeff.get().strip()
-            
-            if not reactant1_name or not reactant2_name:
-                messagebox.showerror("Error", "Please enter both compound names")
-                return
-            
-            user_coeff1 = int(user_coeff1) if user_coeff1 else 1
-            user_coeff2 = int(user_coeff2) if user_coeff2 else 1
-            
-            # Query database
-            self.cursor.execute("""
-                SELECT r.equation, p.name, p.color
-FROM Reactions r
-JOIN Products p ON r.product_id = p.id
-JOIN Reaction_Reactants rr ON r.id = rr.reaction_id
-JOIN Reactants reactants ON rr.reactant_id = reactants.id
-WHERE r.reaction_type = 'Double Displacement'
-GROUP BY r.id
-HAVING 
-    SUM(CASE WHEN LOWER(reactants.name) = LOWER(?) THEN 1 ELSE 0 END) > 0
-AND 
-    SUM(CASE WHEN LOWER(reactants.name) = LOWER(?) THEN 1 ELSE 0 END) > 0
-            """, (reactant1_name, reactant2_name))
-            
-            result = self.cursor.fetchone()
-            
-            if result:
-                equation, product_name, color, reaction_type = result
-                
-                self.dd_equation_label.config(text=equation, fg='#0c4a6e')
-                self.dd_precipitate_label.config(text=f"↓ {product_name} (Precipitate)", fg='#dc2626')
-                self.display_color(color, self.dd_color_canvas, self.dd_color_label)
-                self.dd_status_label.config(text="✓ Precipitation reaction successful! A solid has formed.", fg='#059669')
-            else:
-                self.dd_equation_label.config(text="No reaction occurs", fg='#dc2626')
-                self.dd_precipitate_label.config(text="", fg='#dc2626')
-                self.dd_color_canvas.delete("all")
-                self.dd_status_label.config(text="❌ These compounds don't form a precipitation reaction", fg='#dc2626')
-                
-        except ValueError:
-            messagebox.showerror("Error", "Coefficients must be numbers")
-        except Exception as e:
-            messagebox.showerror("Error", f"Error: {str(e)}")
-    
+
     def display_color(self, color_name, canvas, label):
-        """Display color on canvas"""
-        
         canvas.delete("all")
-        
-        color_map = {
-            'White': '#ffffff',
-            'Colorless': '#e0e7ff',
-            'Red-Brown': '#b91c1c',
-            'Reddish-Brown': '#d2691e',
-            'Gray-White': '#d1d5db',
-            'Yellow': '#fbbf24',
-            'Black': '#1f2937',
-        }
-        
+        color_map = {'White': '#ffffff', 'Colorless': '#e0e7ff', 'Red-Brown': '#b91c1c', 'Reddish-Brown': '#d2691e', 'Gray-White': '#d1d5db', 'Yellow': '#fbbf24'}
         hex_color = color_map.get(color_name, '#cbd5e1')
-        
-        canvas.create_rectangle(2, 2, 98, 58, fill=hex_color, outline='#cbd5e1', width=2)
-        text_color = '#1f2937' if color_name not in ['Colorless', 'White'] else '#0c4a6e'
-        canvas.create_text(50, 30, text=color_name, font=("Segoe UI", 9, "bold"), fill=text_color)
-        
+        canvas.create_rectangle(3, 3, 107, 62, fill=hex_color, outline='#94a3b8', width=2)
+        canvas.create_text(55, 32, text=color_name, font=("Segoe UI", 9, "bold"), fill='#1f2937' if color_name not in ['White', 'Colorless'] else '#1e40af')
         label.config(text=color_name)
 
-def main():
+    
+
+    def perform_combination_reaction(self):
+        try:
+            r1 = self.comb_reactant1_symbol.get().strip().lower()
+            r2 = self.comb_reactant2_symbol.get().strip().lower()
+            user_c1 = int(self.comb_reactant1_coeff.get().strip() or 1)
+            user_c2 = int(self.comb_reactant2_coeff.get().strip() or 1)
+            if not r1 or not r2:
+                messagebox.showwarning("Input Error", "Please enter both reactants")
+                return
+            self.total_attempts += 1
+            self.cursor.execute("""
+                SELECT r.equation, p.name, p.color FROM Reactions r
+                JOIN Products p ON r.product_id = p.id
+                WHERE r.reaction_type = 'Combination'
+                AND r.id IN (SELECT reaction_id FROM Reaction_Reactants WHERE reactant_id = (SELECT id FROM Reactants WHERE LOWER(name) = ?))
+                AND r.id IN (SELECT reaction_id FROM Reaction_Reactants WHERE reactant_id = (SELECT id FROM Reactants WHERE LOWER(name) = ?))
+                LIMIT 1
+            """, (r1, r2))
+            result = self.cursor.fetchone()
+            if result:
+                equation, prod_name, color = result
+                # Fetch original names for balancing
+                self.cursor.execute("SELECT name FROM Reactants WHERE LOWER(name) = ?", (r1,))
+                orig_r1 = self.cursor.fetchone()[0]
+                self.cursor.execute("SELECT name FROM Reactants WHERE LOWER(name) = ?", (r2,))
+                orig_r2 = self.cursor.fetchone()[0]
+                balanced = self.balance_equation(orig_r1, orig_r2, prod_name)
+                if balanced:
+                    c1, c2, cp = balanced
+                    self.comb_equation_label.config(text=f"{c1}{orig_r1} + {c2}{orig_r2} → {cp}{prod_name}")
+                    self.display_color(color, self.comb_color_canvas, self.comb_product_label)
+                    if user_c1 == c1 and user_c2 == c2:
+                        self.score += 1
+                        self.comb_status_label.config(text="🎉 Excellent! Correct balancing.", fg='#059669')
+                    else:
+                        self.comb_status_label.config(text=f"⚠ Auto-balanced: {c1} & {c2} were needed.", fg='#d97706')
+            else:
+                self.comb_equation_label.config(text="No reaction found", fg='#dc2626')
+            self.update_score()
+        except ValueError: messagebox.showerror("Error", "Coefficients must be numbers")
+
+    def perform_double_displacement_reaction(self):
+        try:
+            r1 = self.dd_reactant1_symbol.get().strip()
+            r2 = self.dd_reactant2_symbol.get().strip()
+            user_c1 = int(self.dd_reactant1_coeff.get().strip() or 1)
+            user_c2 = int(self.dd_reactant2_coeff.get().strip() or 1)
+            if not r1 or not r2:
+                messagebox.showwarning("Input Error", "Please enter both compounds")
+                return
+            self.total_attempts += 1
+            r1_l, r2_l = r1.lower(), r2.lower()
+            self.cursor.execute("""
+                SELECT r.id, r.equation, p.name, p.color FROM Reactions r
+                JOIN Products p ON r.product_id = p.id
+                WHERE r.reaction_type = 'Double Displacement'
+                AND EXISTS (SELECT 1 FROM Reaction_Reactants rr JOIN Reactants rx ON rr.reactant_id = rx.id WHERE rr.reaction_id = r.id AND LOWER(rx.name) = ?)
+                AND EXISTS (SELECT 1 FROM Reaction_Reactants rr JOIN Reactants rx ON rr.reactant_id = rx.id WHERE rr.reaction_id = r.id AND LOWER(rx.name) = ?)
+                LIMIT 1
+            """, (r1_l, r2_l))
+            result = self.cursor.fetchone()
+            if result:
+                rid, eq, prod_name, color = result
+                self.cursor.execute("SELECT rx.name, rr.coefficient FROM Reaction_Reactants rr JOIN Reactants rx ON rr.reactant_id = rx.id WHERE rr.reaction_id = ?", (rid,))
+                correct_coeffs = {name.lower(): coeff for name, coeff in self.cursor.fetchall()}
+                c1, c2 = correct_coeffs.get(r1_l, 1), correct_coeffs.get(r2_l, 1)
+                self.dd_equation_label.config(text=eq, fg='#0c4a6e')
+                self.dd_precipitate_label.config(text=f"↓ {prod_name} (Precipitate)")
+                self.display_color(color, self.dd_color_canvas, self.dd_color_label)
+                if user_c1 == c1 and user_c2 == c2:
+                    self.score += 1
+                    self.dd_status_label.config(text="🎉 Perfect balancing!", fg='#059669')
+                else:
+                    self.dd_status_label.config(text=f"⚠ Correction: {c1} & {c2} were required.", fg='#d97706')
+            else:
+                self.dd_equation_label.config(text="No reaction occurs", fg='#dc2626')
+            self.update_score()
+        except ValueError: messagebox.showerror("Error", "Coefficients must be numbers")
+
+    def __del__(self):
+        if hasattr(self, 'conn'): self.conn.close()
+
+if __name__ == "__main__":
     root = tk.Tk()
     app = ChemistrySimulator(root)
     root.mainloop()
-
-if __name__ == "__main__":
-    main()
