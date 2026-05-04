@@ -3,9 +3,44 @@ import sqlite3
 connection = sqlite3.connect('chemistry.db')
 cur = connection.cursor()
 
+# ====================== 1. INSERT ELEMENTS (Periodic Table Data) ======================
+elements_data = [
+    ('H', 'Hydrogen', 1, 1.008, 1, 1, 'Nonmetal'),
+    ('He', 'Helium', 2, 4.003, 18, 1, 'Noble Gas'),
+    ('Li', 'Lithium', 3, 6.941, 1, 2, 'Alkali Metal'),
+    ('Be', 'Beryllium', 4, 9.012, 2, 2, 'Alkaline Earth'),
+    ('B', 'Boron', 5, 10.81, 13, 2, 'Metalloid'),
+    ('C', 'Carbon', 6, 12.01, 14, 2, 'Nonmetal'),
+    ('N', 'Nitrogen', 7, 14.01, 15, 2, 'Nonmetal'),
+    ('O', 'Oxygen', 8, 16.00, 16, 2, 'Nonmetal'),
+    ('F', 'Fluorine', 9, 19.00, 17, 2, 'Halogen'),
+    ('Ne', 'Neon', 10, 20.18, 18, 2, 'Noble Gas'),
+    ('Na', 'Sodium', 11, 22.99, 1, 3, 'Alkali Metal'),
+    ('Mg', 'Magnesium', 12, 24.31, 2, 3, 'Alkaline Earth'),
+    ('Al', 'Aluminum', 13, 26.98, 13, 3, 'Post-transition'),
+    ('Si', 'Silicon', 14, 28.09, 14, 3, 'Metalloid'),
+    ('P', 'Phosphorus', 15, 30.97, 15, 3, 'Nonmetal'),
+    ('S', 'Sulfur', 16, 32.07, 16, 3, 'Nonmetal'),
+    ('Cl', 'Chlorine', 17, 35.45, 17, 3, 'Halogen'),
+    ('Ar', 'Argon', 18, 39.95, 18, 3, 'Noble Gas'),
+    ('K', 'Potassium', 19, 39.10, 1, 4, 'Alkali Metal'),
+    ('Ca', 'Calcium', 20, 40.08, 2, 4, 'Alkaline Earth'),
+    ('Fe', 'Iron', 26, 55.85, 8, 4, 'Transition Metal'),
+    ('Cu', 'Copper', 29, 63.55, 11, 4, 'Transition Metal'),
+    ('Zn', 'Zinc', 30, 65.38, 12, 4, 'Transition Metal'),
+    ('Ag', 'Silver', 47, 107.9, 11, 5, 'Transition Metal'),
+    ('Au', 'Gold', 79, 197.0, 11, 6, 'Transition Metal'),
+    ('Hg', 'Mercury', 80, 200.6, 12, 6, 'Transition Metal'),
+    ('Pb', 'Lead', 82, 207.2, 14, 6, 'Post-transition'),
+]
 
+for symbol, name, number, mass, group, period, category in elements_data:
+    cur.execute("""
+        INSERT OR IGNORE INTO Elements (symbol, name, atomic_number, atomic_mass, group_num, period, category)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (symbol, name, number, mass, group, period, category))
 
-# ====================== 1. INSERT REACTANTS (Elements + New Compounds) ======================
+# ====================== 2. INSERT REACTANTS (Elements + New Compounds) ======================
 reactants_data = [
     ('Na', 'element'), ('Cl2', 'element'), ('H2', 'element'), ('O2', 'element'),
     ('C', 'element'), ('S', 'element'), ('Fe', 'element'), ('Mg', 'element'),
@@ -20,7 +55,7 @@ reactants_data = [
 for name, typ in reactants_data:
     cur.execute("INSERT OR IGNORE INTO Reactants (name, type) VALUES (?, ?)", (name, typ))
 
-# ====================== 2. INSERT PRODUCTS (Combination + Precipitates) ======================
+# ====================== 3. INSERT PRODUCTS (Combination + Precipitates) ======================
 products_data = [
     # Combination products (id 1-10)
     ('NaCl', 'compound', 'White'),
@@ -49,7 +84,7 @@ products_data = [
 for name, typ, color in products_data:
     cur.execute("INSERT OR IGNORE INTO Products (name, type, color) VALUES (?, ?, ?)", (name, typ, color))
 
-# ====================== 3. INSERT COMBINATION REACTIONS (product_id 1-10) ======================
+# ====================== 4. INSERT COMBINATION REACTIONS (product_id 1-10) ======================
 combination_reactions = [
     (1, 'Combination', '2Na + Cl2 → 2NaCl', 'Sodium reacts with chlorine gas'),
     (2, 'Combination', '2H2 + O2 → 2H2O', 'Hydrogen burns in oxygen'),
@@ -69,7 +104,7 @@ for pid, rtype, eq, desc in combination_reactions:
         VALUES (?, ?, ?, ?)
     """, (pid, rtype, eq, desc))
 
-# ====================== 4. INSERT REACTION_REACTANTS FOR COMBINATION ======================
+# ====================== 5. INSERT REACTION_REACTANTS FOR COMBINATION ======================
 comb_rr = [
     (1,1,2),(1,2,1), (2,3,2),(2,4,1), (3,5,1),(3,4,1),
     (4,8,2),(4,4,1), (5,7,4),(5,4,3), (6,6,1),(6,4,1),
@@ -83,7 +118,7 @@ for rid, react_id, coeff in comb_rr:
         VALUES (?, ?, ?)
     """, (rid, react_id, coeff))
 
-# ====================== 5. INSERT COMPOUND COMPOSITION (كل المركبات) ======================
+# ====================== 6. INSERT COMPOUND COMPOSITION (All Compounds) ======================
 all_composition = [
     # Original compounds
     ('NaCl', 'Na', 1), ('NaCl', 'Cl', 1),
@@ -98,7 +133,7 @@ all_composition = [
     ('CS2', 'C', 1), ('CS2', 'S', 2),
     ('H2', 'H', 2), ('O2', 'O', 2), ('Cl2', 'Cl', 2),
     ('Br2', 'Br', 2), ('P4', 'P', 4),
-    
+
     # New compounds + precipitates
     ('AgNO3', 'Ag', 1), ('AgNO3', 'N', 1), ('AgNO3', 'O', 3),
     ('BaCl2', 'Ba', 1), ('BaCl2', 'Cl', 2),
@@ -129,7 +164,7 @@ for name, elem, cnt in all_composition:
         VALUES (?, ?, ?)
     """, (name, elem, cnt))
 
-# ====================== 6. INSERT DOUBLE DISPLACEMENT REACTIONS (product_id من 11 إلى 20) ======================
+# ====================== 7. INSERT DOUBLE DISPLACEMENT REACTIONS (product_id 11-20) ======================
 dd_reactions = [
     (11, 'Double Displacement', 'AgNO3 + NaCl → AgCl↓ + NaNO3', 'Silver nitrate reacts with sodium chloride forming white precipitate'),
     (12, 'Double Displacement', 'BaCl2 + K2CO3 → BaCO3↓ + 2KCl', 'Barium chloride reacts with potassium carbonate forming white precipitate'),
@@ -149,7 +184,7 @@ for pid, rtype, eq, desc in dd_reactions:
         VALUES (?, ?, ?, ?)
     """, (pid, rtype, eq, desc))
 
-# ====================== 7. INSERT REACTION_REACTANTS FOR DOUBLE DISPLACEMENT ======================
+# ====================== 8. INSERT REACTION_REACTANTS FOR DOUBLE DISPLACEMENT ======================
 dd_reactants_data = [
     (11, 'AgNO3', 1), (11, 'NaCl', 1),
     (12, 'BaCl2', 1), (12, 'K2CO3', 1),
@@ -172,4 +207,4 @@ for reaction_id, reactant_name, coefficient in dd_reactants_data:
 connection.commit()
 connection.close()
 
-print("Data inserted")
+print("All data inserted successfully!")

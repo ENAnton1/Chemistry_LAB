@@ -57,7 +57,31 @@ cur.execute("""
     )
 """)
 
+# ===== CREATE TABLE SCORES =====
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS Scores(
+            id INTEGER PRIMARY KEY,
+            player_name TEXT,
+            score INTEGER,
+            accuracy REAL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
+# ===== CREATE TABLE ELEMENTS (NEW - for Periodic Table & Smart Hints) =====
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS Elements(
+            symbol TEXT PRIMARY KEY,
+            name TEXT,
+            atomic_number INTEGER,
+            atomic_mass REAL,
+            group_num INTEGER,
+            period INTEGER,
+            category TEXT
+    )
+""")
+
 connection.commit()
 connection.close()
 
-print("Table created")
+print("Tables created successfully!")
